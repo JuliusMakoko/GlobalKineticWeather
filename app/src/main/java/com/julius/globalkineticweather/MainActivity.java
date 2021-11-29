@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import android.Manifest;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -13,6 +14,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -36,13 +38,17 @@ public class MainActivity extends AppCompatActivity {
     final float MIN_DISTANCE = 1000;
     final int REQUEST_CODE = 101;
 
+    private ProgressDialog pd;
+
 
     String Location_Provider = LocationManager.GPS_PROVIDER;
 
     TextView NameofCity, weatherState, Temperature;
     ImageView mweatherIcon;
 
-    RelativeLayout mCityFinder;
+    Button bSearch, bRefresh;
+
+   // RelativeLayout mCityFinder;
 
 
     LocationManager mLocationManager;
@@ -57,11 +63,17 @@ public class MainActivity extends AppCompatActivity {
         weatherState = findViewById(R.id.weatherCondition);
         Temperature = findViewById(R.id.temperature);
         mweatherIcon = findViewById(R.id.weatherIcon);
-        mCityFinder = findViewById(R.id.cityFinder);
+       // mCityFinder = findViewById(R.id.cityFinder);
+        bSearch = findViewById(R.id.btnSearch);
+        bRefresh = findViewById(R.id.btnRefresh);
         NameofCity = findViewById(R.id.cityName);
 
+        // Progress dialog
+        pd = new ProgressDialog(this);
+        pd.setCancelable(false);
 
-        mCityFinder.setOnClickListener(new View.OnClickListener() {
+
+        bSearch.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, cityFinder.class);
@@ -69,6 +81,23 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        bRefresh.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                getWeatherForCurrentLocation();
+            }
+        });
+
+    }
+
+    private void showDialog() {
+        if (!pd.isShowing())
+            pd.show();
+    }
+
+    private void hideDialog() {
+        if (pd.isShowing())
+            pd.dismiss();
     }
 
  /*   @Override
@@ -79,16 +108,21 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onResume() {
+
         super.onResume();
         Intent mIntent=getIntent();
         String city= mIntent.getStringExtra("City");
         if(city!=null)
         {
+
             getWeatherForNewCity(city);
+
         }
         else
         {
+
             getWeatherForCurrentLocation();
+
         }
 
 
@@ -101,6 +135,8 @@ public class MainActivity extends AppCompatActivity {
         params.put("q",city);
         params.put("appid",APP_ID);
         letsdoSomeNetworking(params);
+        WeatherBySpecificLocation(params,city);
+
 
     }
 
@@ -122,6 +158,7 @@ public class MainActivity extends AppCompatActivity {
                 params.put("lon",Longitude);
                 params.put("appid",APP_ID);
                 letsdoSomeNetworking(params);
+
 
 
 
@@ -170,12 +207,13 @@ public class MainActivity extends AppCompatActivity {
         {
             if(grantResults.length>0 && grantResults[0]==PackageManager.PERMISSION_GRANTED)
             {
-                Toast.makeText(MainActivity.this,"Locationget Succesffully",Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this,"Location retrieved Successfully",Toast.LENGTH_SHORT).show();
                 getWeatherForCurrentLocation();
             }
             else
             {
                 //user denied the permission
+                Toast.makeText(MainActivity.this,"Location retrieve Failed",Toast.LENGTH_SHORT).show();
             }
         }
 
@@ -186,16 +224,18 @@ public class MainActivity extends AppCompatActivity {
 
     private  void letsdoSomeNetworking(RequestParams params)
     {
+        pd.setMessage("Getting Current Location Weather");
+        showDialog();
         AsyncHttpClient client = new AsyncHttpClient();
         client.get(WEATHER_URL,params,new JsonHttpResponseHandler()
         {
+
             @Override
             public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
 
-                Toast.makeText(MainActivity.this,"Data Get Success",Toast.LENGTH_SHORT).show();
-
                 weatherData weatherD=weatherData.fromJson(response);
                 updateUI(weatherD);
+                hideDialog();
 
 
                // super.onSuccess(statusCode, headers, response);
@@ -205,6 +245,41 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
                 //super.onFailure(statusCode, headers, throwable, errorResponse);
+                Toast.makeText(MainActivity.this,"Network Connectivity Failed!!!",Toast.LENGTH_LONG).show();
+
+                hideDialog();
+            }
+        });
+
+
+
+    }
+    private  void WeatherBySpecificLocation(RequestParams params, String city)
+    {
+        pd.setMessage("Getting Weather Conditions for "+city);
+        showDialog();
+        AsyncHttpClient client = new AsyncHttpClient();
+        client.get(WEATHER_URL,params,new JsonHttpResponseHandler()
+        {
+
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
+
+                weatherData weatherD=weatherData.fromJson(response);
+                updateUI(weatherD);
+                hideDialog();
+
+
+                // super.onSuccess(statusCode, headers, response);
+            }
+
+
+            @Override
+            public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
+                //super.onFailure(statusCode, headers, throwable, errorResponse);
+                Toast.makeText(MainActivity.this,"Network Connectivity Failed!!!",Toast.LENGTH_LONG).show();
+
+                hideDialog();
             }
         });
 
